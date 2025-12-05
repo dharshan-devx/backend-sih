@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>My Documents</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: #f8f9fa; color: #333; line-height: 1.6; }
+        .container { max-width: 900px; margin: 40px auto; padding: 30px; background: #fff; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.08); }
+        h2 { font-size: 28px; font-weight: 700; color: #343a40; margin-bottom: 10px; }
+        p { color: #6c757d; margin-bottom: 30px; }
+        .progress-bar { background: #e9ecef; border-radius: 20px; height: 10px; margin-bottom: 30px; overflow: hidden; }
+        .progress-bar div { background: #28a745; height: 100%; border-radius: 20px; transition: width 0.4s ease; }
+        .doc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 25px; }
+        .doc-card { background: #fdfdff; border: 1px solid #e9ecef; border-radius: 10px; padding: 25px; transition: all 0.3s ease; }
+        .doc-card:hover { transform: translateY(-5px); box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
+        .doc-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+        .doc-header h4 { font-size: 18px; font-weight: 600; color: #495057; }
+        .badge { padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; text-transform: uppercase; }
+        .badge-verified { background-color: #d4edda; color: #155724; }
+        .badge-pending { background-color: #fff3cd; color: #856404; }
+        .badge-missing { background-color: #f8d7da; color: #721c24; }
+        label { display: block; font-size: 14px; font-weight: 600; color: #495057; margin-bottom: 8px; }
+        input[type="text"], input[type="file"] { width: 100%; padding: 12px; border: 1px solid #ced4da; border-radius: 6px; background: #f8f9fa; font-size: 14px; margin-bottom: 10px; }
+        input[type="text"]:focus, input[type="file"]:focus { outline: none; border-color: #80bdff; box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25); }
+        input[disabled] { background: #e9ecef; cursor: not-allowed; }
+        .button-group { display: flex; justify-content: flex-end; gap: 15px; margin-top: 40px; }
+        button { padding: 12px 25px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; }
+        .btn-primary { background: #007bff; color: #fff; }
+        .btn-primary:hover { background: #0069d9; }
+        .btn-secondary { background: #6c757d; color: #fff; }
+        .btn-secondary:hover { background: #5a6268; }
+        .file-info { font-size: 12px; color: #6c757d; margin-top: -5px; }
+        .file-info a { color: #007bff; font-weight: 500; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>My Documents</h2>
+        <p>Upload the required documents to complete your profile. Verified documents are locked.</p>
+
+        {% with total=doc_types|length verified_count=existing_docs.values|selectattr("is_verified")|list|length %}
+        <div class="progress-bar">
+            <div style="width: {% if total > 0 %}{{ (verified_count / total) * 100 }}{% else %}0{% endif %}%;"></div>
+        </div>
+        <p>{{ verified_count }} of {{ total }} documents verified.</p>
+        {% endwith %}
+
+        <form method="POST" enctype="multipart/form-data" action="{% url 'upload_beneficiary_document' %}">
+            {% csrf_token %}
+            <div class="doc-grid">
+                {% for code, label in doc_types %}
+                    {% with existing=existing_docs|get:code %}
+                    <div class="doc-card">
+                        <div class="doc-header">
+                            <h4>{{ label }}</h4>
+                            {% if existing.is_verified %}
+                                <span class="badge badge-verified">Verified</span>
+                            {% elif existing %}
+                                <span class="badge badge-pending">Pending</span>
+                            {% else %}
+                                <span class="badge badge-missing">Missing</span>
+                            {% endif %}
+                        </div>
+                        
+                        <label for="document_number_{{ code }}">Document Number</label>
+                        <input type="text" name="document_number_{{ code }}" id="document_number_{{ code }}" value="{{ existing.document_number|default:'' }}" {% if existing.is_verified %}disabled{% endif %}>
+                        
+                        <label for="image_{{ code }}">Upload File</label>
+                        <input type="file" name="image_{{ code }}" id="image_{{ code }}" accept="image/*,application/pdf" {% if existing.is_verified %}disabled{% endif %}>
+
+                        {% if existing.image %}
+                        <div class="file-info">
+                            Current file: <a href="{{ existing.image.url }}" target="_blank">{{ existing.image.name|split:'/'|last }}</a>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endwith %}
+                {% endfor %}
+            </div>
+
+            <div class="button-group">
+                <a href="{% url 'beneficiary_profile' %}" class="btn-secondary" style="text-decoration:none;padding:12px 25px;">Back to Profile</a>
+                <button type="submit" class="btn-primary">Save Documents</button>
+            </div>
+        </form>
+    </div>
+</body>
+</html>
